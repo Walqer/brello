@@ -9,11 +9,11 @@ import "@mantine/notifications/styles.css";
 import "@mantine/spotlight/styles.css";
 import "@mantine/tiptap/styles.css";
 
-import App from "./App.tsx";
+import { Application } from "./application";
 import "./index.css";
 
 createRoot(document.getElementById("root")!).render(
   <MantineProvider>
-    <App />
+    <Application />
   </MantineProvider>,
 );
