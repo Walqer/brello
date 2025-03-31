@@ -54,7 +54,7 @@ export function Application() {
   ));
 
   return (
-    <div className={classes.header}>
+    <header className={classes.header}>
       <Container className={classes.mainSection} size="md">
         <Group justify="space-between">
           Brello
@@ -122,7 +122,7 @@ export function Application() {
           </Tabs.Panel>
         </Tabs>
       </Container>
-    </div>
+    </header>
   );
 }
 
