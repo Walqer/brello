@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { ReactElement, useState } from "react";
 
-import { DragDropContext, Draggable, Droppable } from "@hello-pangea/dnd";
+import { DragDropContext, Draggable, Droppable, OnDragEndResponder } from "@hello-pangea/dnd";
 import cn from "clsx";
 import { nanoid } from "nanoid";
 
@@ -74,16 +74,48 @@ function Header() {
 }
 
 function Board() {
-  const [board] = useState<KanbanBoard>(INITIAL_BOARD);
+  const [board, setBoard] = useState<KanbanBoard>(INITIAL_BOARD);
+  const onDragEnd: OnDragEndResponder = ({ source, destination }) => {
+    if (!destination) return;
+    const sourceId = source.droppableId;
+    const destinationId = destination.droppableId;
+
+    const isInsideTheSameColumn = sourceId === destinationId;
+    if (isInsideTheSameColumn) {
+      const column = board.find((column) => column.id === sourceId);
+      if (column) {
+        const reorderedList = listReorder(column, source.index, destination.index);
+        const updatedBoard = board.map((column) => (column.id === sourceId ? reorderedList : column));
+        setBoard(updatedBoard);
+      }
+    } else {
+      const updatedBoard = cardMove(board, sourceId, destinationId, source.index, destination.index);
+      setBoard(updatedBoard);
+    }
+  };
+  function onCreateCard(card: KanbanCard, columnId: string) {
+    const updatedBoard = board.map((column) => {
+      if (column.id === columnId) {
+        return { ...column, cards: [...column.cards, card] };
+      }
+
+      return column;
+    });
+
+    setBoard(updatedBoard);
+  }
+
   return (
     <section className={cn(containerStyles, styles.section)}>
       <header className={styles.headerSection}>
         <h1 className={styles.title}>Sprint #1</h1>
       </header>
-      <DragDropContext onDragEnd={() => {}}>
+      <DragDropContext onDragEnd={onDragEnd}>
         <div className={cn(styles.grid, customScrollStyles)}>
           {board.map((column) => (
-            <KanbanColumn key={column.id} id={column.id} title={column.title} cards={column.cards} />
+            <KanbanColumn key={column.id} id={column.id} title={column.title} cards={column.cards}>
+              <KanbanCreateCard onCreate={(card) => onCreateCard(card, column.id)} />
+            </KanbanColumn>
           ))}
         </div>
       </DragDropContext>
@@ -91,7 +123,54 @@ function Board() {
   );
 }
 
-function KanbanColumn({ id, title, cards }: { id: string; title: string; cards: KanbanCard[] }) {
+function cardMove(
+  board: KanbanBoard,
+  sourceColumnId: string,
+  destinationColumnId: string,
+  fromIndex: number,
+  toIndex: number,
+): KanbanBoard {
+  const sourceColumnIndex = board.findIndex((column) => column.id === sourceColumnId);
+  const destinationColumnIndex = board.findIndex((column) => column.id === destinationColumnId);
+
+  const sourceColumn = board[sourceColumnIndex];
+  const destinationColumn = board[destinationColumnIndex];
+  const card = sourceColumn.cards[fromIndex];
+  const updatedSourceColumn = { ...sourceColumn, cards: sourceColumn.cards.filter((_, index) => index !== fromIndex) };
+  const updatedDestinationColumn = {
+    ...destinationColumn,
+    cards: [...destinationColumn.cards.slice(0, toIndex), { ...card }, ...destinationColumn.cards.slice(toIndex)],
+  };
+
+  return board.map((column) => {
+    if (column.id === sourceColumnId) {
+      return updatedSourceColumn;
+    }
+    if (column.id === destinationColumnId) {
+      return updatedDestinationColumn;
+    }
+    return column;
+  });
+}
+
+function listReorder(list: KanbanList, startIndex: number, endIndex: number): KanbanList {
+  const cards = Array.from(list.cards);
+  const [removed] = cards.splice(startIndex, 1);
+  cards.splice(endIndex, 0, removed);
+
+  return { ...list, cards };
+}
+function KanbanColumn({
+  id,
+  title,
+  cards,
+  children,
+}: {
+  id: string;
+  title: string;
+  cards: KanbanCard[];
+  children?: ReactElement;
+}) {
   return (
     <Droppable key={id} droppableId={id}>
       {(provided) => (
@@ -102,14 +181,29 @@ function KanbanColumn({ id, title, cards }: { id: string; title: string; cards: 
               <KanbanCard key={id} id={id} index={index} title={title} />
             ))}
             {provided.placeholder}
-            <form className={styles.form}>
-              <Textarea onValue={() => {}} placeholder="Start making new card here" />
-              <Button>Add card</Button>
-            </form>
+            {children}
           </div>
         </div>
       )}
     </Droppable>
+  );
+}
+
+function KanbanCreateCard({ onCreate }: { onCreate: (card: KanbanCard) => void }) {
+  const [title, setTitle] = useState("");
+  function onReset() {
+    setTitle("");
+  }
+  function onSubmit(event: React.FormEvent) {
+    event.preventDefault();
+    onCreate({ id: nanoid(), title });
+    onReset();
+  }
+  return (
+    <form className={styles.form} onSubmit={onSubmit}>
+      <Textarea variant="md" title={title} onValue={setTitle} placeholder="Start making new card here" />
+      <Button type="submit">Add card</Button>
+    </form>
   );
 }
 
