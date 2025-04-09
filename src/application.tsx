@@ -1,6 +1,8 @@
-import { ReactElement, useState } from "react";
+import { ReactElement, useEffect, useRef, useState } from "react";
 
 import { DragDropContext, Draggable, Droppable, OnDragEndResponder } from "@hello-pangea/dnd";
+import { ActionIcon, Group } from "@mantine/core";
+import { IconCheck, IconPencil, IconTrash, IconX } from "@tabler/icons-react";
 import cn from "clsx";
 import { nanoid } from "nanoid";
 
@@ -93,6 +95,7 @@ function Board() {
       setBoard(updatedBoard);
     }
   };
+
   function onCreateCard(card: KanbanCard, columnId: string) {
     const updatedBoard = board.map((column) => {
       if (column.id === columnId) {
@@ -105,6 +108,11 @@ function Board() {
     setBoard(updatedBoard);
   }
 
+  function onColumnUpdate(updatedList: KanbanList) {
+    const updatedBoard = board.map((column) => (column.id === updatedList.id ? updatedList : column));
+    setBoard(updatedBoard);
+  }
+
   return (
     <section className={cn(containerStyles, styles.section)}>
       <header className={styles.headerSection}>
@@ -113,7 +121,13 @@ function Board() {
       <DragDropContext onDragEnd={onDragEnd}>
         <div className={cn(styles.grid, customScrollStyles)}>
           {board.map((column) => (
-            <KanbanColumn key={column.id} id={column.id} title={column.title} cards={column.cards}>
+            <KanbanColumn
+              onUpdate={onColumnUpdate}
+              key={column.id}
+              id={column.id}
+              title={column.title}
+              cards={column.cards}
+            >
               <KanbanCreateCard onCreate={(card) => onCreateCard(card, column.id)} />
             </KanbanColumn>
           ))}
@@ -165,12 +179,23 @@ function KanbanColumn({
   title,
   cards,
   children,
+  onUpdate,
 }: {
   id: string;
   title: string;
   cards: KanbanCard[];
   children?: ReactElement;
+  onUpdate: (updateList: KanbanList) => void;
 }) {
+  function onCardEdit(updatedCard: KanbanCard) {
+    const updatedCards = cards.map((card) => (card.id === updatedCard.id ? updatedCard : card));
+    onUpdate({ id, title, cards: updatedCards });
+  }
+
+  function onCardDelete(cardId: string) {
+    const updatedCards = cards.filter((card) => card.id !== cardId);
+    onUpdate({ id, title, cards: updatedCards });
+  }
   return (
     <Droppable key={id} droppableId={id}>
       {(provided) => (
@@ -178,7 +203,14 @@ function KanbanColumn({
           <p className={styles.columnTitle}>{title}</p>
           <div className={styles.list}>
             {cards.map(({ id, title }, index) => (
-              <KanbanCard key={id} id={id} index={index} title={title} />
+              <KanbanCard
+                onDelete={() => onCardDelete(id)}
+                onEdit={onCardEdit}
+                key={id}
+                id={id}
+                index={index}
+                title={title}
+              />
             ))}
             {provided.placeholder}
             {children}
@@ -191,23 +223,74 @@ function KanbanColumn({
 
 function KanbanCreateCard({ onCreate }: { onCreate: (card: KanbanCard) => void }) {
   const [title, setTitle] = useState("");
+
   function onReset() {
     setTitle("");
   }
+
   function onSubmit(event: React.FormEvent) {
     event.preventDefault();
     onCreate({ id: nanoid(), title });
     onReset();
   }
+
   return (
     <form className={styles.form} onSubmit={onSubmit}>
-      <Textarea variant="md" title={title} onValue={setTitle} placeholder="Start making new card here" />
+      <Textarea variant="md" value={title} onValue={setTitle} placeholder="Start making new card here" />
       <Button type="submit">Add card</Button>
     </form>
   );
 }
 
-function KanbanCard({ title, id, index }: { index: number; id: string; title: string }) {
+function KanbanCard({
+  title,
+  id,
+  index,
+  onEdit,
+  onDelete,
+}: {
+  index: number;
+  id: string;
+  title: string;
+  onEdit: (card: KanbanCard) => void;
+  onDelete: () => void;
+}) {
+  const [editTitle, setEditTitle] = useState(title);
+  const [editMode, setEditMode] = useState(false);
+
+  function onReset() {
+    setEditTitle(title);
+    setEditMode(false);
+  }
+
+  function onEditFinished() {
+    onEdit({ id, title: editTitle });
+    onReset();
+  }
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  useEffect(() => {
+    if (editMode && textareaRef.current) {
+      const el = textareaRef.current;
+      el.focus();
+      el.selectionStart = el.selectionEnd = el.value.length;
+    }
+  }, [editMode]);
+
+  if (editMode) {
+    return (
+      <div className={styles.item}>
+        <Textarea ref={textareaRef} variant="md" value={editTitle} onValue={setEditTitle} />
+        <Group>
+          <ActionIcon onClick={onEditFinished}>
+            <IconCheck size={14} />
+          </ActionIcon>
+          <ActionIcon onClick={onReset}>
+            <IconX size={14} />
+          </ActionIcon>
+        </Group>
+      </div>
+    );
+  }
   return (
     <Draggable key={id} draggableId={id} index={index}>
       {(provided, snapshot) => (
@@ -218,6 +301,14 @@ function KanbanCard({ title, id, index }: { index: number; id: string; title: st
           className={cn(styles.item, snapshot.isDragging ? styles.dragging : null)}
         >
           <p className={styles.itemText}>{title}</p>
+          <Group>
+            <ActionIcon onClick={() => setEditMode(true)}>
+              <IconPencil size={14} />
+            </ActionIcon>
+            <ActionIcon onClick={() => onDelete()}>
+              <IconTrash size={14} />
+            </ActionIcon>
+          </Group>
         </div>
       )}
     </Draggable>
