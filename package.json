@@ -17,6 +17,7 @@
   },
   "packageManager": "pnpm@10.7.0+sha512.6b865ad4b62a1d9842b61d674a393903b871d9244954f652b8842c2b553c72176b278f64c463e52d40fff8aba385c235c8c9ecf5cc7de4fd78b8bb6d49633ab6",
   "dependencies": {
+    "@effector/swc-plugin": "^0.7.0",
     "@fontsource-variable/inter": "^5.2.5",
     "@hello-pangea/dnd": "^18.0.1",
     "@mantine/core": "^7.17.1",
@@ -31,10 +32,14 @@
     "@tiptap/extension-link": "^2.11.5",
     "@tiptap/react": "^2.11.5",
     "@tiptap/starter-kit": "^2.11.5",
+    "@vitejs/plugin-react-swc": "^3.9.0",
     "clsx": "^2.1.1",
     "dayjs": "^1.11.13",
+    "effector": "^23.3.0",
+    "effector-react": "^23.3.0",
     "modern-normalize": "^3.0.1",
     "nanoid": "^5.1.5",
+    "patronum": "^2.3.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },
